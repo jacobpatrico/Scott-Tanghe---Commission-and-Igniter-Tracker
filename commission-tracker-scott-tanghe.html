@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Commission Tracker · Scott Tanghe</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💼</text></svg>" />
+
+<style>
+  /* ---------- Reset & base ---------- */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #fafaf9;
+    color: #1c1917;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  button { font: inherit; cursor: pointer; background: none; border: none; padding: 0; color: inherit; }
+  input { font: inherit; color: inherit; }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type="number"] { -moz-appearance: textfield; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Layout ---------- */
+  .wrap { max-width: 72rem; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid #e7e5e4;
+  }
+  .topbar-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; padding: 1.25rem 0;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+  .topbar-logo {
+    width: 2.5rem; height: 2.5rem; border-radius: 6px;
+    background: #064e3b; color: #ecfdf5;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .eyebrow { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.25em; color: #78716c; }
+  .topbar h1 {
+    margin: 0.125rem 0 0; font-size: 1.5rem; font-weight: 400; letter-spacing: -0.01em;
+    font-family: ui-serif, Georgia, serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .topbar h1 .sep { color: #a8a29e; }
+  .topbar-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+
+  .saved-indicator {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    font-size: 0.75rem; color: #047857; opacity: 0; transition: opacity 0.2s;
+  }
+  .saved-indicator.visible { opacity: 1; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.375rem;
+    padding: 0.5rem 0.75rem; font-size: 0.875rem;
+    border-radius: 6px; border: 1px solid #d6d3d1; background: #fff;
+    color: #1c1917; transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover { background: #f5f5f4; }
+  .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+  .btn-confirm { border-color: #f87171; background: #fef2f2; color: #b91c1c; }
+  .btn-unlocked { border-color: #fbbf24; background: #fffbeb; color: #92400e; }
+
+  /* ---------- Settings panel ---------- */
+  .settings {
+    border-bottom: 1px solid #e7e5e4;
+    background: rgba(245,245,244,0.6);
+  }
+  .settings[hidden] { display: none; }
+  .settings-inner { padding: 1.5rem 0; }
+  .settings-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: 1rem; flex-wrap: wrap; }
+  .settings-head h2 { margin: 0; font-size: 0.875rem; font-weight: 600; letter-spacing: -0.01em; }
+  .settings-head p { margin: 0.125rem 0 0; font-size: 0.75rem; color: #78716c; }
+  .settings-grid {
+    display: grid; gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (min-width: 640px) { .settings-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1024px) { .settings-grid { grid-template-columns: repeat(4, 1fr); } }
+  .settings-grid { border: 0; padding: 0; margin: 0; }
+  .settings.locked .settings-grid { opacity: 0.6; }
+  .settings.locked .settings-grid input { pointer-events: none; background: #f5f5f4; }
+
+  .field { display: block; }
+  .field-label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.15em; color: #78716c; margin-bottom: 0.375rem; }
+  .field-wrap { position: relative; }
+  .field-prefix, .field-suffix {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    color: #a8a29e; font-size: 0.875rem; pointer-events: none;
+  }
+  .field-prefix { left: 0.75rem; }
+  .field-suffix { right: 0.75rem; }
+  .field input {
+    width: 100%; padding: 0.625rem 0.75rem;
+    border: 1px solid #d6d3d1; border-radius: 6px; background: #fff;
+    font-variant-numeric: tabular-nums;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .field input.has-prefix { padding-left: 1.75rem; }
+  .field input.has-suffix { padding-right: 2.25rem; }
+  .field input:focus {
+    outline: none; border-color: #047857;
+    box-shadow: 0 0 0 3px rgba(4,120,87,0.15);
+  }
+
+  .help-card {
+    margin-top: 1.5rem; padding: 0.75rem;
+    background: #fff; border: 1px solid #e7e5e4; border-radius: 6px;
+    display: flex; gap: 0.5rem; align-items: flex-start;
+    font-size: 0.75rem; color: #57534e; line-height: 1.6;
+  }
+  .help-card svg { color: #a8a29e; flex-shrink: 0; margin-top: 0.125rem; }
+  .help-card strong { color: #292524; font-weight: 600; }
+  .help-card p { margin: 0; }
+
+  /* ---------- Main ---------- */
+  main { padding: 2.5rem 0; }
+
+  /* ---------- Igniter section ---------- */
+  .igniter { margin-bottom: 2.5rem; }
+  .igniter-main {
+    background: linear-gradient(135deg, #0c1410 0%, #1c2922 100%);
+    color: #ecfdf5;
+    border-radius: 10px; padding: 1.75rem;
+    position: relative; overflow: hidden;
+    border: 1px solid #1c2922;
+    margin-bottom: 1rem;
+  }
+  .igniter-main::before {
+    content: ""; position: absolute; top: -4rem; right: -4rem;
+    width: 16rem; height: 16rem; border-radius: 50%;
+    background: radial-gradient(circle, rgba(251,191,36,0.15) 0%, rgba(251,191,36,0) 60%);
+    pointer-events: none;
+  }
+  .igniter-main > * { position: relative; }
+
+  .igniter-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+  }
+  .igniter-head .eyebrow { color: rgba(251,191,36,0.85); }
+  .igniter-goal {
+    margin: 0.25rem 0 0; font-size: 2.75rem; font-weight: 400;
+    font-family: ui-serif, Georgia, serif; letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pace-pill {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0.875rem; border-radius: 9999px;
+    font-size: 0.8125rem; font-weight: 500;
+    border: 1px solid transparent;
+  }
+  .pace-pill.ahead   { background: rgba(4,120,87,0.25);  color: #6ee7b7; border-color: rgba(110,231,183,0.3); }
+  .pace-pill.behind  { background: rgba(180,83,9,0.25);   color: #fcd34d; border-color: rgba(252,211,77,0.3); }
+  .pace-pill.on      { background: rgba(120,113,108,0.25);color: #d6d3d1; border-color: rgba(214,211,209,0.3); }
+  .pace-pill.crushed { background: rgba(4,120,87,0.35);   color: #a7f3d0; border-color: rgba(167,243,208,0.4); }
+
+  .igniter-stats {
+    display: grid; gap: 1.25rem; margin-bottom: 1.25rem;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .igniter-stat { display: flex; flex-direction: column; gap: 0.25rem; }
+  .igniter-stat .stat-label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.18em; color: rgba(167,243,208,0.7); }
+  .igniter-stat .stat-value {
+    font-size: 1.25rem; font-family: ui-serif, Georgia, serif;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+  }
+
+  .igniter-bar {
+    position: relative; height: 0.625rem; border-radius: 9999px;
+    background: rgba(255,255,255,0.08); overflow: hidden;
+  }
+  .igniter-bar-fill {
+    position: absolute; top: 0; bottom: 0; left: 0; border-radius: 9999px;
+    background: linear-gradient(90deg, #34d399, #fbbf24);
+    transition: width 0.5s ease;
+  }
+  /* Marker showing today's expected position */
+  .igniter-bar-marker {
+    position: absolute; top: -3px; bottom: -3px; width: 2px;
+    background: rgba(255,255,255,0.7); border-radius: 1px;
+    transition: left 0.5s ease;
+  }
+  .igniter-bar-marker::after {
+    content: ""; position: absolute; top: -4px; left: -3px;
+    width: 8px; height: 8px; background: rgba(255,255,255,0.9);
+    border-radius: 50%;
+  }
+  .igniter-caption {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+    margin-top: 0.625rem; font-size: 0.75rem; color: rgba(167,243,208,0.75);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Mini quarter cards */
+  .qmini-grid {
+    display: grid; gap: 0.75rem;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (min-width: 768px) { .qmini-grid { grid-template-columns: repeat(4, 1fr); } }
+  .qmini {
+    border: 1px solid #e7e5e4; background: #fff; border-radius: 8px;
+    padding: 0.875rem 1rem;
+    display: flex; flex-direction: column; gap: 0.5rem;
+  }
+  .qmini.current { border-color: #1c2922; box-shadow: 0 0 0 1px #1c2922; }
+  .qmini-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+  .qmini-name {
+    font-family: ui-serif, Georgia, serif; font-size: 1rem;
+  }
+  .qmini-period { font-size: 0.6875rem; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.1em; }
+  .qmini-stat { display: flex; justify-content: space-between; font-size: 0.75rem; }
+  .qmini-stat dt { color: #78716c; }
+  .qmini-stat dd { margin: 0; color: #1c1917; font-variant-numeric: tabular-nums; font-weight: 500; }
+  .qmini-bar { height: 0.25rem; background: #f5f5f4; border-radius: 9999px; overflow: hidden; }
+  .qmini-bar-fill { height: 100%; background: #a8a29e; border-radius: 9999px; transition: width 0.5s ease, background 0.2s; }
+  .qmini-bar-fill.hit { background: #047857; }
+  .qmini-bar-fill.partial { background: #fbbf24; }
+  .qmini-variance {
+    font-size: 0.75rem; font-variant-numeric: tabular-nums;
+    padding: 0.125rem 0; font-weight: 500;
+  }
+  .qmini-variance.ahead { color: #047857; }
+  .qmini-variance.behind { color: #b45309; }
+  .qmini-variance.future { color: #a8a29e; font-weight: 400; }
+  .qmini-variance.crushed { color: #047857; font-weight: 600; }
+
+  /* ---------- Summary cards ---------- */
+  .summary {
+    display: grid; gap: 1rem; margin-bottom: 2.5rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 768px) { .summary { grid-template-columns: repeat(3, 1fr); } }
+  .card {
+    border: 1px solid #e7e5e4; background: #fff; border-radius: 8px; padding: 1.25rem;
+    position: relative; overflow: hidden;
+  }
+  .card-head { display: flex; align-items: center; justify-content: space-between; }
+  .card-label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.2em; color: #78716c; }
+  .card-icon { color: #d6d3d1; }
+  .card-value {
+    margin-top: 0.75rem; font-size: 1.875rem; letter-spacing: -0.02em;
+    font-family: ui-serif, Georgia, serif; font-variant-numeric: tabular-nums;
+  }
+  .card-caption { margin-top: 0.25rem; font-size: 0.75rem; color: #78716c; }
+
+  .card-dark {
+    background: #1c1917; border-color: #1c1917; color: #fafaf9;
+  }
+  .card-dark .card-label { color: #a8a29e; }
+  .card-dark .card-icon { color: #78716c; }
+  .card-dark .card-caption { color: #a8a29e; }
+
+  .card-emerald {
+    background: #064e3b; border-color: rgba(6,78,59,0.2); color: #ecfdf5;
+  }
+  .card-emerald .card-label { color: rgba(167,243,208,0.9); }
+  .card-emerald .card-icon { color: rgba(110,231,183,0.7); }
+  .card-emerald .card-caption { color: rgba(167,243,208,0.85); }
+  .card-emerald::before {
+    content: ""; position: absolute; top: -2.5rem; right: -2.5rem;
+    width: 10rem; height: 10rem; border-radius: 50%;
+    background: rgba(4,120,87,0.4); filter: blur(2rem);
+    pointer-events: none;
+  }
+  .card-emerald > * { position: relative; }
+
+  /* ---------- Annual threshold section ---------- */
+  .annual {
+    border: 1px solid #e7e5e4; background: #fff; border-radius: 8px;
+    padding: 1.5rem; margin-bottom: 3rem;
+  }
+  .annual-head {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;
+  }
+  .annual-title { display: flex; align-items: center; gap: 0.5rem; }
+  .annual-title h2 { margin: 0; font-size: 0.875rem; font-weight: 600; letter-spacing: -0.01em; }
+  .annual-title svg { color: #a8a29e; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.15em;
+    border-radius: 4px;
+  }
+  .chip-emerald { background: #064e3b; color: #ecfdf5; }
+  .chip-dark { background: #1c1917; color: #fafaf9; }
+  .chip-amber { background: #fef3c7; color: #78350f; border: 1px solid #fde68a; }
+  .chip-muted { background: #f5f5f4; color: #78716c; }
+  .annual-progress {
+    font-size: 0.75rem; color: #78716c; font-variant-numeric: tabular-nums;
+  }
+  .annual-progress strong { color: #1c1917; font-weight: 500; }
+
+  .bar {
+    position: relative; height: 0.75rem; border-radius: 9999px;
+    background: #f5f5f4; overflow: hidden;
+  }
+  .bar-fill {
+    position: absolute; top: 0; bottom: 0; left: 0; border-radius: 9999px;
+    background: #292524; transition: width 0.5s ease, background 0.2s;
+  }
+  .bar-fill.reached { background: #047857; }
+  .bar-sm { height: 0.5rem; }
+  .bar-sm .bar-fill { background: #a8a29e; }
+  .bar-sm .bar-fill.reached { background: #047857; }
+
+  .annual-note {
+    margin: 0.75rem 0 0; font-size: 0.75rem; color: #78716c; line-height: 1.6;
+  }
+  .annual-note .reached-text { color: #065f46; font-weight: 500; }
+
+  /* ---------- Quarter header ---------- */
+  .qheader {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 1.25rem; gap: 1rem; flex-wrap: wrap;
+  }
+  .qheader h2 {
+    margin: 0; font-size: 1.25rem; letter-spacing: -0.01em; font-weight: 400;
+    font-family: ui-serif, Georgia, serif;
+  }
+
+  /* ---------- Quarter cards ---------- */
+  .quarters { display: flex; flex-direction: column; gap: 1.25rem; }
+  .quarter {
+    border: 1px solid #e7e5e4; background: #fff; border-radius: 8px; overflow: hidden;
+  }
+  .quarter-head {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 0.75rem;
+    padding: 1rem 1.5rem; border-bottom: 1px solid #e7e5e4;
+    background: rgba(245,245,244,0.7);
+  }
+  .quarter-head h3 {
+    margin: 0; font-size: 1.125rem; font-weight: 400; letter-spacing: -0.01em;
+    font-family: ui-serif, Georgia, serif;
+  }
+  .quarter-head h3 .sep { color: #a8a29e; }
+  .quarter-period { font-size: 0.75rem; color: #78716c; margin-top: 0.125rem; }
+
+  .quarter-body {
+    display: grid; gap: 1.5rem;
+    padding: 1.5rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 1024px) {
+    .quarter-body { grid-template-columns: 3fr 2fr; }
+    .quarter-calc { border-left: 1px solid #e7e5e4; padding-left: 1.5rem; }
+  }
+
+  .section-label {
+    font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.2em;
+    color: #78716c; margin-bottom: 0.5rem;
+  }
+  .months-grid {
+    display: grid; gap: 0.75rem; grid-template-columns: repeat(3, 1fr);
+  }
+  .month-input .month-label { font-size: 0.75rem; color: #78716c; margin-bottom: 0.25rem; }
+  .month-input .input-wrap { position: relative; }
+  .month-input input {
+    width: 100%; padding: 0.625rem 0.75rem 0.625rem 1.75rem;
+    border: 1px solid #d6d3d1; border-radius: 6px; background: #fff;
+    text-align: right; font-variant-numeric: tabular-nums;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .month-input input:focus {
+    outline: none; border-color: #047857;
+    box-shadow: 0 0 0 3px rgba(4,120,87,0.15);
+  }
+  .month-input .dollar {
+    position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
+    color: #a8a29e; font-size: 0.875rem; pointer-events: none;
+  }
+
+  .quarter-meter { margin-top: 1.25rem; }
+  .quarter-meter + .quarter-meter { margin-top: 1.25rem; }
+  .meter-row {
+    display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;
+    font-size: 0.75rem; color: #78716c; margin-bottom: 0.375rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .meter-row strong { color: #1c1917; font-weight: 500; }
+  .meter-variance.ahead   { color: #047857; font-weight: 500; }
+  .meter-variance.behind  { color: #b45309; font-weight: 500; }
+  .meter-variance.future  { color: #a8a29e; }
+
+  .quarter-calc dl { margin: 0; }
+  .quarter-calc .row {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 0.75rem; padding: 0.25rem 0;
+  }
+  .quarter-calc dt { font-size: 0.875rem; color: #44403c; margin: 0; }
+  .quarter-calc dt .hint { display: block; font-size: 0.6875rem; color: #a8a29e; margin-top: 0.125rem; }
+  .quarter-calc dt.muted { color: #78716c; }
+  .quarter-calc dd { margin: 0; font-variant-numeric: tabular-nums; color: #1c1917; }
+  .quarter-calc dd.muted { color: #78716c; }
+  .quarter-calc dd.emphasized {
+    font-size: 1.125rem; color: #065f46; font-weight: 600;
+    font-family: ui-serif, Georgia, serif;
+  }
+  .calc-divider { border-top: 1px solid #f5f5f4; margin: 0.5rem 0; }
+
+  .annual-applied {
+    margin-top: 1rem; padding: 0.75rem;
+    background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px;
+    font-size: 0.75rem; color: #064e3b; line-height: 1.6;
+  }
+  .annual-applied strong { font-weight: 600; }
+  .annual-applied[hidden] { display: none; }
+
+  /* ---------- Footer ---------- */
+  footer.app-footer {
+    margin-top: 3.5rem; padding-top: 2rem;
+    border-top: 1px solid #e7e5e4;
+    text-align: center; font-size: 0.75rem; color: #a8a29e;
+  }
+
+  /* ---------- Icons ---------- */
+  .icon { display: inline-block; vertical-align: -2px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="topbar-left">
+      <div class="topbar-logo" aria-hidden="true">
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+      </div>
+      <div style="min-width:0">
+        <div class="eyebrow">Commission Tracker</div>
+        <h1><span id="hdr-name">Scott Tanghe</span> <span class="sep">·</span> <span class="num" id="hdr-year">2026</span></h1>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="saved-indicator" id="saved" aria-live="polite">
+        <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Saved
+      </span>
+      <button class="btn" id="btn-toggle-settings" aria-expanded="false">
+        <svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+        <svg class="icon icon-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<section class="settings locked" id="settings-panel" hidden>
+  <div class="wrap settings-inner">
+    <div class="settings-head">
+      <div>
+        <h2>Compensation &amp; Goal Settings</h2>
+        <p>Editable for future raises, rate changes, or goal updates. Changes save automatically.</p>
+      </div>
+      <button class="btn btn-sm" id="btn-toggle-lock">
+        <svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" id="lock-icon"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span id="lock-label">Locked</span>
+      </button>
+    </div>
+    <div class="settings-grid" id="settings-fields">
+      <label class="field">
+        <div class="field-label">Employee</div>
+        <div class="field-wrap"><input type="text" id="set-name" /></div>
+      </label>
+      <label class="field">
+        <div class="field-label">Year</div>
+        <div class="field-wrap"><input type="number" id="set-year" step="1" min="2000" /></div>
+      </label>
+      <label class="field">
+        <div class="field-label">Annual Salary</div>
+        <div class="field-wrap"><span class="field-prefix">$</span><input type="number" class="has-prefix" id="set-salary" step="1000" min="0" /></div>
+      </label>
+      <label class="field">
+        <div class="field-label">Commission Rate</div>
+        <div class="field-wrap"><input type="number" class="has-suffix" id="set-rate" step="0.1" min="0" /><span class="field-suffix">%</span></div>
+      </label>
+      <label class="field">
+        <div class="field-label">Annual Igniter Goal</div>
+        <div class="field-wrap"><span class="field-prefix">$</span><input type="number" class="has-prefix" id="set-igniter" step="1000" min="0" /></div>
+      </label>
+      <label class="field">
+        <div class="field-label">Quarterly Threshold</div>
+        <div class="field-wrap"><span class="field-prefix">$</span><input type="number" class="has-prefix" id="set-qthresh" step="500" min="0" /></div>
+      </label>
+      <label class="field">
+        <div class="field-label">Annual Threshold</div>
+        <div class="field-wrap"><span class="field-prefix">$</span><input type="number" class="has-prefix" id="set-athresh" step="1000" min="0" /></div>
+      </label>
+    </div>
+    <div class="help-card">
+      <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <p>
+        <strong>How it works:</strong>
+        The <em>igniter</em> is the annual production goal. Each quarter targets a quarter of it.
+        Commission is separate: first <span id="help-qthresh">$25,000</span> of raw charge per quarter is excluded;
+        anything over pays <span id="help-rate">6%</span>. Once YTD raw charge crosses
+        <span id="help-athresh">$100,000</span>, every additional dollar is commissioned for the rest of the year.
+      </p>
+    </div>
+  </div>
+</section>
+
+<main class="wrap">
+
+  <!-- IGNITER SECTION -->
+  <section class="igniter">
+    <div class="igniter-main">
+      <div class="igniter-head">
+        <div>
+          <div class="eyebrow">Annual Igniter · <span id="igniter-year">2026</span></div>
+          <div class="igniter-goal num" id="igniter-goal-display">$250,000</div>
+        </div>
+        <span class="pace-pill on" id="pace-pill">
+          <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span id="pace-text">On pace</span>
+        </span>
+      </div>
+
+      <div class="igniter-stats">
+        <div class="igniter-stat">
+          <span class="stat-label">Produced YTD</span>
+          <span class="stat-value num" id="igniter-ytd">$0</span>
+        </div>
+        <div class="igniter-stat">
+          <span class="stat-label">Remaining</span>
+          <span class="stat-value num" id="igniter-remaining">$250,000</span>
+        </div>
+        <div class="igniter-stat">
+          <span class="stat-label">Year Elapsed</span>
+          <span class="stat-value num" id="igniter-year-pct">0%</span>
+        </div>
+      </div>
+
+      <div class="igniter-bar" title="The marker shows where you should be today">
+        <div class="igniter-bar-fill" id="igniter-bar-fill" style="width:0%"></div>
+        <div class="igniter-bar-marker" id="igniter-bar-marker" style="left:0%"></div>
+      </div>
+      <div class="igniter-caption">
+        <span><span id="igniter-percent">0%</span> of goal · marker shows today's expected position</span>
+        <span id="igniter-expected">Expected by today: $0</span>
+      </div>
+    </div>
+
+    <div class="qmini-grid" id="qmini-grid"></div>
+  </section>
+
+  <section class="summary">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-label">Base Salary</div>
+        <svg class="icon card-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+      </div>
+      <div class="card-value num" id="display-salary">$60,000</div>
+      <div class="card-caption">Annual · before commission</div>
+    </div>
+    <div class="card card-emerald">
+      <div class="card-head">
+        <div class="card-label">Commission Earned</div>
+        <svg class="icon card-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      </div>
+      <div class="card-value num" id="display-commission">$0.00</div>
+      <div class="card-caption" id="display-commission-caption">6% of $0 commissionable</div>
+    </div>
+    <div class="card card-dark">
+      <div class="card-head">
+        <div class="card-label">Total Compensation</div>
+        <svg class="icon card-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2 7 7 2-7 2-2 7-2-7-7-2 7-2z"/></svg>
+      </div>
+      <div class="card-value num" id="display-total">$60,000.00</div>
+      <div class="card-caption">Salary + commission · YTD</div>
+    </div>
+  </section>
+
+  <section class="annual">
+    <div class="annual-head">
+      <div class="annual-title">
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        <h2>Annual Commission Threshold</h2>
+        <span class="chip chip-emerald" id="annual-chip" hidden>
+          <svg class="icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Unlocked
+        </span>
+      </div>
+      <div class="annual-progress">
+        <strong id="annual-ytd">$0</strong> of <span id="annual-goal">$100,000</span>
+      </div>
+    </div>
+    <div class="bar"><div class="bar-fill" id="annual-bar" style="width:0%"></div></div>
+    <p class="annual-note" id="annual-note">
+      $100,000 remaining until the annual override kicks in. After that, every additional dollar is commissioned for the rest of the year.
+    </p>
+  </section>
+
+  <div class="qheader">
+    <h2>Quarterly Breakdown</h2>
+    <button class="btn btn-sm" id="btn-reset">
+      <svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      <span id="reset-label">Reset charges</span>
+    </button>
+  </div>
+
+  <section class="quarters" id="quarters"></section>
+
+  <footer class="app-footer">
+    Data is saved privately to your browser · <span id="ft-name">Scott Tanghe</span>'s tracker
+  </footer>
+
+</main>
+
+<script>
+'use strict';
+
+/* ---------------- Constants ---------------- */
+
+var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var MONTHS_SHORT_RANGE = [
+  'Jan \u2013 Mar','Apr \u2013 Jun','Jul \u2013 Sep','Oct \u2013 Dec'
+];
+
+var QUARTERS = [
+  { name:'Q1', label:'First Quarter',  period:'Jan 1 \u2013 Mar 31', months:[0,1,2] },
+  { name:'Q2', label:'Second Quarter', period:'Apr 1 \u2013 Jun 30', months:[3,4,5] },
+  { name:'Q3', label:'Third Quarter',  period:'Jul 1 \u2013 Sep 30', months:[6,7,8] },
+  { name:'Q4', label:'Fourth Quarter', period:'Oct 1 \u2013 Dec 31', months:[9,10,11] }
+];
+
+var DEFAULTS = {
+  employeeName: 'Scott Tanghe',
+  year: 2026,
+  salary: 60000,
+  commissionRate: 6,
+  annualIgniter: 250000,
+  quarterlyThreshold: 25000,
+  annualThreshold: 100000
+};
+
+var STORAGE_KEY = 'commission-tracker:scott-tanghe:v3';
+
+/* ---------------- State ---------------- */
+
+var state = {
+  settings: Object.assign({}, DEFAULTS),
+  charges: new Array(12).fill(0),
+  ui: { settingsOpen:false, locked:true, confirmReset:false }
+};
+
+/* ---------------- Helpers ---------------- */
+
+function fmtUSD(amount, cents) {
+  var n = (typeof amount === 'number' && isFinite(amount)) ? amount : 0;
+  return n.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: cents ? 2 : 0,
+    maximumFractionDigits: cents ? 2 : 0
+  });
+}
+
+function calcQuarter(qRaw, ytdBefore, qThreshold, aThreshold, ratePct) {
+  var nonComm = Math.min(qThreshold, qRaw, Math.max(0, aThreshold - ytdBefore));
+  var commissionable = Math.max(0, qRaw - nonComm);
+  var commission = commissionable * (ratePct / 100);
+  var ytdAfter = ytdBefore + qRaw;
+  var fromAnnualOverride = Math.max(0, ytdAfter - Math.max(aThreshold, ytdBefore));
+  return {
+    nonComm: nonComm, commissionable: commissionable, commission: commission,
+    fromAnnualOverride: fromAnnualOverride, ytdAfter: ytdAfter
+  };
+}
+
+function getYearProgress(year) {
+  var start = new Date(year, 0, 1).getTime();
+  var end = new Date(year + 1, 0, 1).getTime();
+  var now = Date.now();
+  if (now <= start) return 0;
+  if (now >= end) return 1;
+  return (now - start) / (end - start);
+}
+
+function getQuarterProgress(year, qIdx) {
+  var qStart = new Date(year, qIdx * 3, 1).getTime();
+  var qEnd = new Date(year, (qIdx + 1) * 3, 1).getTime();
+  var now = Date.now();
+  if (now <= qStart) return { status: 'future', progress: 0 };
+  if (now >= qEnd)   return { status: 'past',   progress: 1 };
+  return { status: 'current', progress: (now - qStart) / (qEnd - qStart) };
+}
+
+function $(id) { return document.getElementById(id); }
+
+/* ---------------- Persistence ---------------- */
+
+function load() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      var data = JSON.parse(raw);
+      if (data && data.settings) {
+        for (var k in DEFAULTS) {
+          if (data.settings[k] !== undefined) state.settings[k] = data.settings[k];
+        }
+      }
+      if (data && Object.prototype.toString.call(data.charges) === '[object Array]' && data.charges.length === 12) {
+        state.charges = data.charges.map(function(v){
+          var n = parseFloat(v);
+          return isFinite(n) && n >= 0 ? n : 0;
+        });
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+var saveTimer = null;
+function saveDebounced() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function(){
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        settings: state.settings, charges: state.charges
+      }));
+      flashSaved();
+    } catch (e) { /* ignore */ }
+  }, 350);
+}
+
+function flashSaved() {
+  var el = $('saved');
+  el.classList.add('visible');
+  setTimeout(function(){ el.classList.remove('visible'); }, 1400);
+}
+
+/* ---------------- Build quarter cards (large) once ---------------- */
+
+function buildQuarters() {
+  var html = '';
+  for (var i = 0; i < QUARTERS.length; i++) {
+    var q = QUARTERS[i];
+    html += '<article class="quarter" data-q="' + i + '">';
+    html +=   '<div class="quarter-head">';
+    html +=     '<div>';
+    html +=       '<h3>' + q.name + ' <span class="sep">\u00b7</span> ' + q.label + '</h3>';
+    html +=       '<div class="quarter-period">' + q.period + ', <span data-year>2026</span></div>';
+    html +=     '</div>';
+    html +=     '<span class="chip" data-status></span>';
+    html +=   '</div>';
+    html +=   '<div class="quarter-body">';
+    html +=     '<div>';
+    html +=       '<div class="section-label">Raw Charges by Month</div>';
+    html +=       '<div class="months-grid">';
+    for (var j = 0; j < q.months.length; j++) {
+      var m = q.months[j];
+      html += '<div class="month-input">';
+      html +=   '<div class="month-label">' + MONTHS[m] + '</div>';
+      html +=   '<div class="input-wrap">';
+      html +=     '<span class="dollar">$</span>';
+      html +=     '<input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" data-month="' + m + '" />';
+      html +=   '</div>';
+      html += '</div>';
+    }
+    html +=       '</div>';
+
+    // Quarterly commission threshold meter
+    html +=       '<div class="quarter-meter">';
+    html +=         '<div class="meter-row">';
+    html +=           '<span>Commission threshold progress: <strong data-qtotal>$0</strong></span>';
+    html +=           '<span class="num">First <span data-qthresh-label>$25,000</span> excluded</span>';
+    html +=         '</div>';
+    html +=         '<div class="bar bar-sm"><div class="bar-fill" data-qbar style="width:0%"></div></div>';
+    html +=       '</div>';
+
+    // Quarterly igniter meter (NEW)
+    html +=       '<div class="quarter-meter">';
+    html +=         '<div class="meter-row">';
+    html +=         '<span>Igniter target: <strong data-qitarget>$62,500</strong> \u00b7 actual <strong data-qiactual>$0</strong></span>';
+    html +=           '<span class="meter-variance future" data-qivariance>\u2014</span>';
+    html +=         '</div>';
+    html +=         '<div class="bar bar-sm"><div class="bar-fill" data-qibar style="width:0%"></div></div>';
+    html +=       '</div>';
+
+    html +=     '</div>';
+    html +=     '<div class="quarter-calc">';
+    html +=       '<div class="section-label">Commission Calculation</div>';
+    html +=       '<dl>';
+    html +=         '<div class="row"><dt>Raw charges</dt><dd class="num" data-stat="raw">$0</dd></div>';
+    html +=         '<div class="row"><dt class="muted">Non-commissionable<span class="hint" data-hint hidden></span></dt><dd class="muted num" data-stat="noncomm">\u2212 $0</dd></div>';
+    html +=         '<div class="calc-divider"></div>';
+    html +=         '<div class="row"><dt>Commissionable</dt><dd class="num" data-stat="able">$0</dd></div>';
+    html +=         '<div class="row"><dt class="muted"><span data-rate-label>\u00d7 6% commission</span></dt><dd class="muted"></dd></div>';
+    html +=         '<div class="calc-divider"></div>';
+    html +=         '<div class="row"><dt>Commission earned</dt><dd class="emphasized num" data-stat="commission">$0.00</dd></div>';
+    html +=       '</dl>';
+    html +=       '<div class="annual-applied" data-applied hidden>';
+    html +=         '<strong>Annual override applied:</strong> <span data-applied-amt>$0</span> of this quarter\'s commissionable amount comes from exceeding the <span data-applied-thresh>$100,000</span> YTD mark.';
+    html +=       '</div>';
+    html +=     '</div>';
+    html +=   '</div>';
+    html += '</article>';
+  }
+  $('quarters').innerHTML = html;
+}
+
+/* ---------------- Build mini quarter cards (igniter section) ---------------- */
+
+function buildQmini() {
+  var html = '';
+  for (var i = 0; i < QUARTERS.length; i++) {
+    var q = QUARTERS[i];
+    html += '<article class="qmini" data-qmini="' + i + '">';
+    html +=   '<div class="qmini-head">';
+    html +=     '<span class="qmini-name">' + q.name + '</span>';
+    html +=     '<span class="qmini-period">' + MONTHS_SHORT_RANGE[i] + '</span>';
+    html +=   '</div>';
+    html +=   '<div class="qmini-stat"><dt>Target</dt><dd class="num" data-mini-target>$62,500</dd></div>';
+    html +=   '<div class="qmini-stat"><dt>Actual</dt><dd class="num" data-mini-actual>$0</dd></div>';
+    html +=   '<div class="qmini-bar"><div class="qmini-bar-fill" data-mini-bar style="width:0%"></div></div>';
+    html +=   '<div class="qmini-variance future" data-mini-variance>Not started</div>';
+    html += '</article>';
+  }
+  $('qmini-grid').innerHTML = html;
+}
+
+/* ---------------- Populate inputs from state ---------------- */
+
+function populateInputs() {
+  $('set-name').value    = state.settings.employeeName;
+  $('set-year').value    = state.settings.year;
+  $('set-salary').value  = state.settings.salary;
+  $('set-rate').value    = state.settings.commissionRate;
+  $('set-igniter').value = state.settings.annualIgniter;
+  $('set-qthresh').value = state.settings.quarterlyThreshold;
+  $('set-athresh').value = state.settings.annualThreshold;
+
+  var inputs = document.querySelectorAll('input[data-month]');
+  for (var i = 0; i < inputs.length; i++) {
+    var m = parseInt(inputs[i].getAttribute('data-month'), 10);
+    var v = state.charges[m];
+    inputs[i].value = v ? v : '';
+  }
+}
+
+/* ---------------- Update derived display ---------------- */
+
+function update() {
+  var s = state.settings;
+
+  // Header & meta
+  $('hdr-name').textContent = s.employeeName || '\u2014';
+  $('hdr-year').textContent = s.year;
+  $('ft-name').textContent  = s.employeeName || '\u2014';
+  $('igniter-year').textContent = s.year;
+  document.title = 'Commission Tracker \u00b7 ' + (s.employeeName || '');
+
+  // Help text
+  $('help-qthresh').textContent = fmtUSD(s.quarterlyThreshold);
+  $('help-rate').textContent    = s.commissionRate + '%';
+  $('help-athresh').textContent = fmtUSD(s.annualThreshold);
+
+  // Quarter year labels
+  var yearSpans = document.querySelectorAll('[data-year]');
+  for (var i = 0; i < yearSpans.length; i++) yearSpans[i].textContent = s.year;
+
+  // ===== Compute per-quarter commission =====
+  var quarters = [];
+  var ytd = 0;
+  for (var qi = 0; qi < QUARTERS.length; qi++) {
+    var q = QUARTERS[qi];
+    var raw = 0;
+    for (var mi = 0; mi < q.months.length; mi++) raw += state.charges[q.months[mi]] || 0;
+    var calc = calcQuarter(raw, ytd, s.quarterlyThreshold, s.annualThreshold, s.commissionRate);
+    quarters.push({
+      idx: qi, raw: raw, ytdBefore: ytd, ytdAfter: calc.ytdAfter,
+      nonComm: calc.nonComm, commissionable: calc.commissionable,
+      commission: calc.commission, fromAnnualOverride: calc.fromAnnualOverride
+    });
+    ytd += raw;
+  }
+
+  var totalCommission = 0, totalCommissionable = 0;
+  for (var k = 0; k < quarters.length; k++) {
+    totalCommission += quarters[k].commission;
+    totalCommissionable += quarters[k].commissionable;
+  }
+  var totalComp = s.salary + totalCommission;
+
+  // ===== Summary cards =====
+  $('display-salary').textContent     = fmtUSD(s.salary);
+  $('display-commission').textContent = fmtUSD(totalCommission, true);
+  $('display-total').textContent      = fmtUSD(totalComp, true);
+  $('display-commission-caption').textContent =
+    s.commissionRate + '% of ' + fmtUSD(totalCommissionable) + ' commissionable';
+
+  // ===== Annual commission threshold =====
+  var annualPct = s.annualThreshold > 0 ? Math.min(100, (ytd / s.annualThreshold) * 100) : 0;
+  var annualReached = ytd >= s.annualThreshold;
+  $('annual-bar').style.width = annualPct + '%';
+  $('annual-bar').classList.toggle('reached', annualReached);
+  $('annual-ytd').textContent  = fmtUSD(ytd);
+  $('annual-goal').textContent = fmtUSD(s.annualThreshold);
+  $('annual-chip').hidden = !annualReached;
+  if (annualReached) {
+    $('annual-note').innerHTML =
+      '<span class="reached-text">All additional raw charge for the rest of the year is commissionable</span>' +
+      ' \u2014 the quarterly floor no longer applies.';
+  } else {
+    var remaining = Math.max(0, s.annualThreshold - ytd);
+    $('annual-note').textContent =
+      fmtUSD(remaining) + ' remaining until the annual override kicks in.';
+  }
+
+  // ===== IGNITER SECTION =====
+  var igniter = s.annualIgniter || 0;
+  var quarterlyTarget = igniter / 4;
+  var yearProg = getYearProgress(s.year);
+  var expectedYTD = igniter * yearProg;
+  var igniterPace = ytd - expectedYTD;
+  var ignitorPct = igniter > 0 ? Math.min(100, (ytd / igniter) * 100) : 0;
+
+  $('igniter-goal-display').textContent = fmtUSD(igniter);
+  $('igniter-ytd').textContent          = fmtUSD(ytd);
+  $('igniter-remaining').textContent    = fmtUSD(Math.max(0, igniter - ytd));
+  $('igniter-year-pct').textContent     = (yearProg * 100).toFixed(1) + '%';
+  $('igniter-percent').textContent      = ignitorPct.toFixed(1) + '%';
+  $('igniter-expected').textContent     = 'Expected by today: ' + fmtUSD(expectedYTD);
+  $('igniter-bar-fill').style.width     = ignitorPct + '%';
+  $('igniter-bar-marker').style.left    = Math.min(100, yearProg * 100) + '%';
+
+  // Pace pill
+  var pill = $('pace-pill');
+  var pillText = $('pace-text');
+  pill.className = 'pace-pill';
+  if (igniter <= 0) {
+    pill.classList.add('on');
+    pillText.textContent = 'Set a goal in Settings';
+  } else if (ytd >= igniter) {
+    pill.classList.add('crushed');
+    pillText.textContent = 'Goal achieved! ' + fmtUSD(ytd - igniter) + ' past igniter';
+  } else if (yearProg <= 0) {
+    pill.classList.add('on');
+    pillText.textContent = 'Year not started';
+  } else if (Math.abs(igniterPace) < 1) {
+    pill.classList.add('on');
+    pillText.textContent = 'On pace';
+  } else if (igniterPace > 0) {
+    pill.classList.add('ahead');
+    pillText.textContent = fmtUSD(igniterPace) + ' ahead of pace';
+  } else {
+    pill.classList.add('behind');
+    pillText.textContent = fmtUSD(Math.abs(igniterPace)) + ' behind pace';
+  }
+
+  // ===== Mini quarter cards =====
+  for (var qmi = 0; qmi < QUARTERS.length; qmi++) {
+    var qData = quarters[qmi];
+    var miniEl = document.querySelector('[data-qmini="' + qmi + '"]');
+    if (!miniEl) continue;
+    var prog = getQuarterProgress(s.year, qmi);
+
+    miniEl.querySelector('[data-mini-target]').textContent = fmtUSD(quarterlyTarget);
+    miniEl.querySelector('[data-mini-actual]').textContent = fmtUSD(qData.raw);
+    var pct = quarterlyTarget > 0 ? Math.min(100, (qData.raw / quarterlyTarget) * 100) : 0;
+    var miniBar = miniEl.querySelector('[data-mini-bar]');
+    miniBar.style.width = pct + '%';
+    miniBar.className = 'qmini-bar-fill';
+    if (qData.raw >= quarterlyTarget && quarterlyTarget > 0) {
+      miniBar.classList.add('hit');
+    } else if (qData.raw > 0) {
+      miniBar.classList.add('partial');
+    }
+
+    miniEl.classList.toggle('current', prog.status === 'current');
+
+    var vEl = miniEl.querySelector('[data-mini-variance]');
+    vEl.className = 'qmini-variance';
+    if (igniter <= 0) {
+      vEl.classList.add('future');
+      vEl.textContent = 'No goal set';
+    } else if (prog.status === 'future') {
+      vEl.classList.add('future');
+      vEl.textContent = 'Upcoming · target ' + fmtUSD(quarterlyTarget);
+    } else if (prog.status === 'past') {
+      var pastDiff = qData.raw - quarterlyTarget;
+      if (pastDiff >= 0) {
+        vEl.classList.add('crushed');
+        vEl.textContent = 'Hit goal · +' + fmtUSD(pastDiff);
+      } else {
+        vEl.classList.add('behind');
+        vEl.textContent = 'Missed by ' + fmtUSD(Math.abs(pastDiff));
+      }
+    } else {
+      // current quarter
+      var expectedInQ = quarterlyTarget * prog.progress;
+      var diffInQ = qData.raw - expectedInQ;
+      if (Math.abs(diffInQ) < 1) {
+        vEl.classList.add('future');
+        vEl.textContent = 'On pace this quarter';
+      } else if (diffInQ > 0) {
+        vEl.classList.add('ahead');
+        vEl.textContent = fmtUSD(diffInQ) + ' ahead this quarter';
+      } else {
+        vEl.classList.add('behind');
+        vEl.textContent = fmtUSD(Math.abs(diffInQ)) + ' behind this quarter';
+      }
+    }
+  }
+
+  // ===== Each large quarter card =====
+  for (var qj = 0; qj < quarters.length; qj++) {
+    var qd = quarters[qj];
+    var el = document.querySelector('[data-q="' + qj + '"]');
+    if (!el) continue;
+    var qProg = getQuarterProgress(s.year, qj);
+
+    // Threshold meter
+    el.querySelector('[data-qtotal]').textContent = fmtUSD(qd.raw);
+    el.querySelector('[data-qthresh-label]').textContent = fmtUSD(s.quarterlyThreshold);
+    var qPct = s.quarterlyThreshold > 0 ? Math.min(100, (qd.raw / s.quarterlyThreshold) * 100) : 0;
+    var qbar = el.querySelector('[data-qbar]');
+    qbar.style.width = qPct + '%';
+    var thresholdMet = qd.raw >= s.quarterlyThreshold;
+    var annualAlreadyCrossed = qd.ytdBefore >= s.annualThreshold;
+    qbar.classList.toggle('reached', thresholdMet || annualAlreadyCrossed);
+
+    // Igniter meter (NEW)
+    el.querySelector('[data-qitarget]').textContent = fmtUSD(quarterlyTarget);
+    el.querySelector('[data-qiactual]').textContent = fmtUSD(qd.raw);
+    var qIPct = quarterlyTarget > 0 ? Math.min(100, (qd.raw / quarterlyTarget) * 100) : 0;
+    var qibar = el.querySelector('[data-qibar]');
+    qibar.style.width = qIPct + '%';
+    qibar.classList.toggle('reached', qd.raw >= quarterlyTarget && quarterlyTarget > 0);
+
+    var qiv = el.querySelector('[data-qivariance]');
+    qiv.className = 'meter-variance';
+    if (igniter <= 0 || quarterlyTarget <= 0) {
+      qiv.classList.add('future'); qiv.textContent = '\u2014';
+    } else if (qProg.status === 'future') {
+      qiv.classList.add('future'); qiv.textContent = 'Upcoming';
+    } else if (qProg.status === 'past') {
+      var diffPast = qd.raw - quarterlyTarget;
+      if (diffPast >= 0) { qiv.classList.add('ahead'); qiv.textContent = '+' + fmtUSD(diffPast) + ' over target'; }
+      else               { qiv.classList.add('behind'); qiv.textContent = '\u2212' + fmtUSD(Math.abs(diffPast)) + ' below target'; }
+    } else {
+      var exp = quarterlyTarget * qProg.progress;
+      var diff = qd.raw - exp;
+      if (Math.abs(diff) < 1)      { qiv.classList.add('future'); qiv.textContent = 'On pace this quarter'; }
+      else if (diff > 0)           { qiv.classList.add('ahead');  qiv.textContent = '+' + fmtUSD(diff) + ' vs pace'; }
+      else                         { qiv.classList.add('behind'); qiv.textContent = '\u2212' + fmtUSD(Math.abs(diff)) + ' vs pace'; }
+    }
+
+    // Status chip
+    var chip = el.querySelector('[data-status]');
+    chip.className = 'chip';
+    var chipText = '';
+    if (annualAlreadyCrossed) { chip.classList.add('chip-emerald'); chipText = 'Annual unlocked \u2014 all commissioned'; }
+    else if (qd.ytdBefore < s.annualThreshold && qd.ytdAfter >= s.annualThreshold) { chip.classList.add('chip-emerald'); chipText = 'Annual crossed this quarter'; }
+    else if (thresholdMet) { chip.classList.add('chip-dark'); chipText = 'Quarterly threshold met'; }
+    else if (qd.raw > 0) { chip.classList.add('chip-amber'); chipText = 'Below quarterly threshold'; }
+    else { chip.classList.add('chip-muted'); chipText = 'No charges yet'; }
+    chip.textContent = chipText;
+
+    // Calc rows
+    el.querySelector('[data-stat="raw"]').textContent        = fmtUSD(qd.raw);
+    el.querySelector('[data-stat="noncomm"]').textContent    = '\u2212 ' + fmtUSD(qd.nonComm);
+    el.querySelector('[data-stat="able"]').textContent       = fmtUSD(qd.commissionable);
+    el.querySelector('[data-stat="commission"]').textContent = fmtUSD(qd.commission, true);
+    el.querySelector('[data-rate-label]').textContent        = '\u00d7 ' + s.commissionRate + '% commission';
+
+    var hint = el.querySelector('[data-hint]');
+    if (qd.nonComm === 0 && qd.raw > 0) {
+      hint.hidden = false;
+      hint.textContent = annualAlreadyCrossed ? 'Annual threshold already crossed' : 'Quarterly floor met';
+    } else { hint.hidden = true; }
+
+    var applied = el.querySelector('[data-applied]');
+    var showApplied = (annualAlreadyCrossed || (qd.ytdBefore < s.annualThreshold && qd.ytdAfter >= s.annualThreshold)) && qd.fromAnnualOverride > 0;
+    applied.hidden = !showApplied;
+    if (showApplied) {
+      applied.querySelector('[data-applied-amt]').textContent    = fmtUSD(qd.fromAnnualOverride);
+      applied.querySelector('[data-applied-thresh]').textContent = fmtUSD(s.annualThreshold);
+    }
+  }
+}
+
+/* ---------------- Listeners ---------------- */
+
+function attachListeners() {
+  $('btn-toggle-settings').addEventListener('click', function(){
+    state.ui.settingsOpen = !state.ui.settingsOpen;
+    $('settings-panel').hidden = !state.ui.settingsOpen;
+    this.setAttribute('aria-expanded', state.ui.settingsOpen ? 'true' : 'false');
+    var chev = this.querySelector('.icon-chevron');
+    chev.innerHTML = state.ui.settingsOpen
+      ? '<polyline points="18 15 12 9 6 15"></polyline>'
+      : '<polyline points="6 9 12 15 18 9"></polyline>';
+  });
+
+  $('btn-toggle-lock').addEventListener('click', function(){
+    state.ui.locked = !state.ui.locked;
+    var panel = $('settings-panel');
+    var btn = this;
+    var lockIcon = $('lock-icon');
+    var label = $('lock-label');
+    if (state.ui.locked) {
+      panel.classList.add('locked');
+      btn.classList.remove('btn-unlocked');
+      label.textContent = 'Locked';
+      lockIcon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
+    } else {
+      panel.classList.remove('locked');
+      btn.classList.add('btn-unlocked');
+      label.textContent = 'Unlocked \u2014 editing enabled';
+      lockIcon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>';
+    }
+  });
+
+  function bindSetting(id, key, parse) {
+    var el = $(id);
+    el.addEventListener('input', function(){
+      var v = parse ? parse(el.value) : el.value;
+      state.settings[key] = v;
+      update();
+      saveDebounced();
+    });
+  }
+  var num = function(v){ var n = parseFloat(v); return isFinite(n) && n >= 0 ? n : 0; };
+  var integer = function(v){ var n = parseInt(v, 10); return isFinite(n) ? n : 0; };
+
+  bindSetting('set-name',    'employeeName',       function(v){ return v; });
+  bindSetting('set-year',    'year',               integer);
+  bindSetting('set-salary',  'salary',             num);
+  bindSetting('set-rate',    'commissionRate',     num);
+  bindSetting('set-igniter', 'annualIgniter',      num);
+  bindSetting('set-qthresh', 'quarterlyThreshold', num);
+  bindSetting('set-athresh', 'annualThreshold',    num);
+
+  var monthInputs = document.querySelectorAll('input[data-month]');
+  for (var i = 0; i < monthInputs.length; i++) {
+    monthInputs[i].addEventListener('input', function(){
+      var m = parseInt(this.getAttribute('data-month'), 10);
+      var v = parseFloat(this.value);
+      state.charges[m] = isFinite(v) && v >= 0 ? v : 0;
+      update();
+      saveDebounced();
+    });
+    monthInputs[i].addEventListener('wheel', function(){ this.blur(); });
+  }
+
+  $('btn-reset').addEventListener('click', function(){
+    if (state.ui.confirmReset) {
+      state.charges = new Array(12).fill(0);
+      populateInputs();
+      update();
+      saveDebounced();
+      state.ui.confirmReset = false;
+      this.classList.remove('btn-confirm');
+      $('reset-label').textContent = 'Reset charges';
+    } else {
+      state.ui.confirmReset = true;
+      this.classList.add('btn-confirm');
+      $('reset-label').textContent = 'Click again to confirm';
+    }
+  });
+  $('btn-reset').addEventListener('blur', function(){
+    if (state.ui.confirmReset) {
+      state.ui.confirmReset = false;
+      this.classList.remove('btn-confirm');
+      $('reset-label').textContent = 'Reset charges';
+    }
+  });
+}
+
+/* ---------------- Init ---------------- */
+
+load();
+buildQuarters();
+buildQmini();
+populateInputs();
+attachListeners();
+update();
+
+// Keep "today" position fresh if the page stays open
+setInterval(update, 60 * 60 * 1000);
+</script>
+
+</body>
+</html>
